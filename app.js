@@ -1,7 +1,7 @@
 // ==========================================
 // STATE MANAGEMENT & VERSIONING
 // ==========================================
-const APP_VERSION = '1.2.0-IDB';
+const APP_VERSION = '1.2.0-IDB'; // Heartbeat update for push
 
 let workouts = [];
 let expenses = [];
