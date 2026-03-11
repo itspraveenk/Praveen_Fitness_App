@@ -100,6 +100,103 @@ function toTitleCase(str) {
         .join(' ');
 }
 
+// Parses a YYYY-MM-DD date string as LOCAL time (avoids UTC off-by-one day bug)
+function parseLocalDate(dateStr) {
+    if (!dateStr) return new Date(NaN);
+    const [y, m, d] = dateStr.split('-').map(Number);
+    return new Date(y, m - 1, d);
+}
+
+// ==========================================
+// AUTO-DRAFT HELPERS
+// ==========================================
+const DRAFT_KEYS = {
+    workout: 'wt_draft_workout',
+    expense: 'wt_draft_expense'
+};
+
+function saveDraftWorkout() {
+    try {
+        const muscleEl = document.getElementById('muscle-group');
+        const dayEl = DOM.w.elements.dayInput;
+        const exercises = [];
+        document.querySelectorAll('.exercise-block').forEach(block => {
+            const title = block.querySelector('.exercise-title-input').value;
+            const sets = Array.from(block.querySelectorAll('.set-row')).map(row => ({
+                weight: row.querySelector('.set-weight').value,
+                reps: row.querySelector('.set-reps').value
+            }));
+            exercises.push({ title, sets });
+        });
+        const draft = {
+            date: dayEl ? dayEl.value : '',
+            muscle: muscleEl ? muscleEl.value : '',
+            exercises
+        };
+        localStorage.setItem(DRAFT_KEYS.workout, JSON.stringify(draft));
+    } catch (e) { /* ignore */ }
+}
+
+function restoreDraftWorkout() {
+    try {
+        const raw = localStorage.getItem(DRAFT_KEYS.workout);
+        if (!raw) return;
+        const draft = JSON.parse(raw);
+        if (!draft) return;
+        if (draft.date && DOM.w.elements.dayInput) DOM.w.elements.dayInput.value = draft.date;
+        const muscleEl = document.getElementById('muscle-group');
+        if (draft.muscle && muscleEl) muscleEl.value = draft.muscle;
+        if (draft.exercises && draft.exercises.length) {
+            DOM.w.elements.container.innerHTML = '';
+            draft.exercises.forEach(ex => addExerciseBlock(ex));
+        }
+    } catch (e) { /* ignore */ }
+}
+
+function clearDraftWorkout() {
+    localStorage.removeItem(DRAFT_KEYS.workout);
+}
+
+function saveDraftExpense() {
+    try {
+        const draft = {
+            date: DOM.s.elements.dateInput ? DOM.s.elements.dateInput.value : '',
+            type: document.getElementById('expense-type') ? document.getElementById('expense-type').value : '',
+            customType: document.getElementById('custom-category-input') ? document.getElementById('custom-category-input').value : '',
+            item: document.getElementById('expense-item') ? document.getElementById('expense-item').value : '',
+            price: document.getElementById('expense-price') ? document.getElementById('expense-price').value : ''
+        };
+        localStorage.setItem(DRAFT_KEYS.expense, JSON.stringify(draft));
+    } catch (e) { /* ignore */ }
+}
+
+function restoreDraftExpense() {
+    try {
+        const raw = localStorage.getItem(DRAFT_KEYS.expense);
+        if (!raw) return;
+        const draft = JSON.parse(raw);
+        if (!draft) return;
+        if (draft.date && DOM.s.elements.dateInput) DOM.s.elements.dateInput.value = draft.date;
+        const typeEl = document.getElementById('expense-type');
+        if (draft.type && typeEl) {
+            typeEl.value = draft.type;
+            if (draft.type === 'Other') {
+                DOM.s.elements.customTypeGroup.classList.remove('hidden');
+                DOM.s.elements.customTypeInput.setAttribute('required', 'true');
+                if (draft.customType) DOM.s.elements.customTypeInput.value = draft.customType;
+            }
+        }
+        const itemEl = document.getElementById('expense-item');
+        if (draft.item && itemEl) itemEl.value = draft.item;
+        const priceEl = document.getElementById('expense-price');
+        if (draft.price && priceEl) priceEl.value = draft.price;
+    } catch (e) { /* ignore */ }
+}
+
+function clearDraftExpense() {
+    localStorage.removeItem(DRAFT_KEYS.expense);
+}
+
 // ==========================================
 // DOM ELEMENTS
 // ==========================================
@@ -379,17 +476,36 @@ function switchView(app, viewName) {
         // Setup defaults
         const today = new Date().toISOString().split('T')[0];
         if (app === 'w') {
-            // Updated check: only add block if container is empty
-            if (d.elements.container.innerHTML.trim() === '') addExerciseBlock();
-            d.elements.dayInput.value = today;
+            if (!editingWorkoutId) {
+                // Try to restore draft first, otherwise set defaults
+                const hasDraft = !!localStorage.getItem(DRAFT_KEYS.workout);
+                if (d.elements.container.innerHTML.trim() === '') {
+                    if (hasDraft) {
+                        restoreDraftWorkout();
+                    } else {
+                        addExerciseBlock();
+                        d.elements.dayInput.value = today;
+                    }
+                }
+                // Attach auto-draft listeners (using debounce)
+                setupWorkoutDraftListeners();
+            } else {
+                d.elements.dayInput.value = d.elements.dayInput.value || today;
+            }
         } else if (app === 's') {
             // Only reset to defaults if NOT editing
             if (!editingExpenseId) {
-                d.elements.dateInput.value = today;
-                DOM.s.elements.typeSelect.value = 'Groceries';
-                DOM.s.elements.customTypeGroup.classList.add('hidden');
-                DOM.s.elements.customTypeInput.value = '';
-                DOM.s.elements.customTypeInput.removeAttribute('required');
+                const hasDraft = !!localStorage.getItem(DRAFT_KEYS.expense);
+                if (hasDraft) {
+                    restoreDraftExpense();
+                } else {
+                    d.elements.dateInput.value = today;
+                    DOM.s.elements.typeSelect.value = 'Groceries';
+                    DOM.s.elements.customTypeGroup.classList.add('hidden');
+                    DOM.s.elements.customTypeInput.value = '';
+                    DOM.s.elements.customTypeInput.removeAttribute('required');
+                }
+                setupExpenseDraftListeners();
             } else {
                 // If editing, update the title
                 d.elements.title.textContent = 'Edit Expense';
@@ -648,6 +764,34 @@ function setupEventListeners() {
     }
 }
 
+// Draft listener setup (idempotent — uses a flag to avoid duplicates)
+let _workoutDraftListenersAttached = false;
+function setupWorkoutDraftListeners() {
+    if (_workoutDraftListenersAttached) return;
+    _workoutDraftListenersAttached = true;
+    const form = DOM.w.elements.form;
+    if (form) form.addEventListener('input', saveDraftWorkout);
+    // Also listen for dynamic exercise blocks added later
+    const container = DOM.w.elements.container;
+    if (container) {
+        new MutationObserver(() => {
+            // Re-attach input listeners to any new set rows
+            container.querySelectorAll('.set-input, .exercise-title-input').forEach(el => {
+                el.removeEventListener('input', saveDraftWorkout);
+                el.addEventListener('input', saveDraftWorkout);
+            });
+        }).observe(container, { childList: true, subtree: true });
+    }
+}
+
+let _expenseDraftListenersAttached = false;
+function setupExpenseDraftListeners() {
+    if (_expenseDraftListenersAttached) return;
+    _expenseDraftListenersAttached = true;
+    const form = DOM.s.elements.form;
+    if (form) form.addEventListener('input', saveDraftExpense);
+}
+
 // ==========================================
 // WORKOUTS LOGIC
 // ==========================================
@@ -663,7 +807,7 @@ function addExerciseBlock(exerciseData = null) {
 
     block.innerHTML = `
         <div class="exercise-header">
-            <input type="text" class="exercise-title-input" placeholder="Exercise Name" required value="${exerciseData ? exerciseData.title : ''}">
+            <input type="text" class="exercise-title-input" placeholder="Exercise Name" required value="${exerciseData ? (exerciseData.title || '') : ''}">
             <button type="button" class="btn-icon-danger remove-ex-btn"><i class="ph ph-trash"></i></button>
         </div>
         <div class="sets-container">
@@ -749,8 +893,10 @@ function handleSaveWorkout(e) {
             };
             workouts.unshift(newWorkout);
         }
-        workouts.sort((a, b) => new Date(b.date) - new Date(a.date));
+        workouts.sort((a, b) => parseLocalDate(b.date) - parseLocalDate(a.date));
         saveData('workouts');
+        clearDraftWorkout();
+        _workoutDraftListenersAttached = false;
         DOM.w.elements.form.reset();
         DOM.w.elements.container.innerHTML = '';
         document.getElementById('save-workout-btn').textContent = 'Save Workout';
@@ -790,7 +936,7 @@ function renderWorkoutsDashboard() {
 
     const oneWeekAgo = new Date();
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-    DOM.w.elements.week.textContent = workouts.filter(w => new Date(w.date) >= oneWeekAgo).length;
+    DOM.w.elements.week.textContent = workouts.filter(w => parseLocalDate(w.date) >= oneWeekAgo).length;
 
     updateWorkoutsChart();
 
@@ -800,7 +946,7 @@ function renderWorkoutsDashboard() {
     }
 
     DOM.w.elements.list.innerHTML = workouts.map(w => {
-        const dObj = new Date(w.date);
+        const dObj = parseLocalDate(w.date);
         const dStr = isNaN(dObj) ? w.date : dObj.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
         const totalSets = w.exercises.reduce((acc, ex) => acc + ex.sets.length, 0);
         const exNames = w.exercises.map(ex => ex.title).join(', ');
@@ -999,7 +1145,7 @@ function renderCustomWorkoutsChart() {
     }
 
     workouts.forEach(w => {
-        const wDate = new Date(w.date);
+        const wDate = parseLocalDate(w.date);
         const inDateRange = wDate >= startDate && wDate <= endDate;
 
         const wMuscleGroup = w.muscle ? w.muscle.toLowerCase() : '';
@@ -1137,6 +1283,8 @@ function handleSaveExpense(e) {
         }
 
         saveData('expenses');
+        clearDraftExpense();
+        _expenseDraftListenersAttached = false;
         DOM.s.elements.form.reset();
         // Reset custom category
         DOM.s.elements.customTypeGroup.classList.add('hidden');
@@ -1189,7 +1337,7 @@ function renderSpendingDashboard() {
     const viewYear = currentViewingDate.getFullYear();
 
     const monthExpenses = expenses.filter(exp => {
-        const d = new Date(exp.date);
+        const d = parseLocalDate(exp.date);
         return d.getMonth() === viewMonth && d.getFullYear() === viewYear;
     });
 
@@ -1230,7 +1378,7 @@ function renderSpendingDashboard() {
     }
 
     DOM.s.elements.list.innerHTML = monthExpenses.map(exp => {
-        const dObj = new Date(exp.date);
+        const dObj = parseLocalDate(exp.date);
         const dStr = isNaN(dObj) ? exp.date : dObj.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' });
 
         return `
@@ -1395,7 +1543,7 @@ function renderCustomSpendingChart() {
     const endDate = new Date(endYear, parseInt(endMonth), 0);
 
     const filteredExpenses = expenses.filter(e => {
-        const eDate = new Date(e.date);
+        const eDate = parseLocalDate(e.date);
         const inDateRange = eDate >= startDate && eDate <= endDate;
 
         const eTypeLC = e.type ? e.type.toLowerCase() : '';
@@ -1416,7 +1564,7 @@ function renderCustomSpendingChart() {
     }
 
     filteredExpenses.forEach(e => {
-        const eDate = new Date(e.date);
+        const eDate = parseLocalDate(e.date);
         const key = eDate.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
         if (buckets[key] !== undefined) {
             buckets[key] += e.price;
@@ -2338,29 +2486,140 @@ function parseMapsUrl(value) {
     return false;
 }
 
+function openGoogleMaps() {
+    const name = document.getElementById('travel-location-name').value.trim();
+    let url = 'https://www.google.com/maps';
+
+    if (name.startsWith('http')) {
+        url = name;
+    } else if (name) {
+        url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(name)}`;
+    }
+
+    window.open(url, '_blank');
+}
+
+function getGPSLocation() {
+    const btn = document.getElementById('travel-gps-btn');
+    if (!btn) return;
+
+    const icon = btn.querySelector('i');
+    const oldClass = icon.className;
+
+    icon.className = 'ph ph-circle-notch ph-spin';
+
+    if (!navigator.geolocation) {
+        alert('Geolocation is not supported by your browser');
+        icon.className = oldClass;
+        return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+        (position) => {
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+
+            DOM.t.elements.latInput.value = lat.toFixed(6);
+            DOM.t.elements.lngInput.value = lng.toFixed(6);
+
+            if (!DOM.t.elements.nameInput.value) {
+                DOM.t.elements.nameInput.value = 'Current Location';
+            }
+
+            icon.className = 'ph ph-check-circle';
+            btn.style.color = '#00e676';
+            setTimeout(() => {
+                icon.className = oldClass;
+                btn.style.color = '';
+            }, 2000);
+        },
+        (error) => {
+            console.error('GPS error:', error);
+            alert('Unable to retrieve your location. Check GPS permissions.');
+            icon.className = oldClass;
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+}
+
 function checkClipboardForLocation() {
-    navigator.clipboard.readText().then(text => {
+    const btn = document.getElementById('travel-paste-btn');
+
+    // --- Helper: try to parse and give visual feedback ---
+    function applyLink(text) {
         if (text && text.includes('google.com/maps')) {
             if (parseMapsUrl(text)) {
-                // Success feedback
-                const btn = document.getElementById('travel-paste-btn');
                 const i = btn.querySelector('i');
                 const oldClass = i.className;
                 i.className = 'ph ph-check-circle';
                 btn.style.borderColor = '#00e676';
-                setTimeout(() => {
-                    i.className = oldClass;
-                    btn.style.borderColor = '';
-                }, 2000);
+                setTimeout(() => { i.className = oldClass; btn.style.borderColor = ''; }, 2000);
+                hidePasteModal();
+                return true;
             } else {
-                alert('No valid location found in clipboard link.');
+                showPasteModal('No valid coordinates found in that link. Try again:');
+                return false;
             }
         } else {
-            alert('Clipboard does not contain a Google Maps link.');
+            showPasteModal('Paste your Google Maps link here:');
+            return false;
         }
-    }).catch(err => {
-        alert('Please allow clipboard access or paste the link manually into the box.');
-    });
+    }
+
+    // --- Helper: show an inline manual-paste text field ---
+    function showPasteModal(message) {
+        // Remove any existing modal
+        hidePasteModal();
+
+        const modal = document.createElement('div');
+        modal.id = 'paste-modal';
+        modal.style.cssText = `
+            position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%);
+            background: #1e1e1e; border: 1px solid rgba(0,180,219,0.4);
+            border-radius: 14px; padding: 16px; width: 320px; z-index: 200;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+        `;
+        modal.innerHTML = `
+            <p style="font-size:13px; color:#a0a0a0; margin-bottom:10px;">${message}</p>
+            <div style="display:flex; gap:8px;">
+                <input type="url" id="paste-modal-input" placeholder="https://maps.google.com/..."
+                    style="flex:1; background:#2c2c2c; border:1px solid rgba(255,255,255,0.15);
+                    color:#fff; padding:10px 12px; border-radius:10px; font-size:14px; font-family:inherit;">
+                <button id="paste-modal-apply" style="background:#00B4DB; border:none; color:#fff;
+                    padding:10px 16px; border-radius:10px; font-weight:600; cursor:pointer; font-size:14px;">
+                    Apply
+                </button>
+            </div>
+            <button id="paste-modal-close" style="position:absolute; top:10px; right:12px;
+                background:none; border:none; color:#a0a0a0; cursor:pointer; font-size:18px;">✕</button>
+        `;
+        document.body.appendChild(modal);
+
+        const input = modal.querySelector('#paste-modal-input');
+        input.focus();
+
+        modal.querySelector('#paste-modal-apply').addEventListener('click', () => applyLink(input.value.trim()));
+        modal.querySelector('#paste-modal-close').addEventListener('click', hidePasteModal);
+        input.addEventListener('keydown', (e) => { if (e.key === 'Enter') applyLink(input.value.trim()); });
+    }
+
+    function hidePasteModal() {
+        const m = document.getElementById('paste-modal');
+        if (m) m.remove();
+    }
+
+    // --- Try the Clipboard API first (Chrome, HTTPS Firefox) ---
+    if (navigator.clipboard && typeof navigator.clipboard.readText === 'function') {
+        navigator.clipboard.readText().then(text => {
+            applyLink(text || '');
+        }).catch(() => {
+            // Permission denied or API unavailable — show manual fallback
+            showPasteModal('Paste your Google Maps link here:');
+        });
+    } else {
+        // No Clipboard API at all (Safari, non-HTTPS) — go straight to manual input
+        showPasteModal('Paste your Google Maps link here:');
+    }
 }
 
 function initTravelGlobe() {

@@ -419,6 +419,9 @@ label {
 input[type="text"],
 input[type="number"],
 input[type="date"],
+input[type="month"],
+input[type="url"],
+textarea,
 select {
     width: 100%;
     background-color: var(--bg-elevated);
@@ -433,9 +436,33 @@ select {
     transition: all 0.2s ease;
 }
 
-input[type="date"]::-webkit-calendar-picker-indicator {
+/* Chrome/Edge/Safari — invert the calendar icon to white */
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="month"]::-webkit-calendar-picker-indicator {
     filter: invert(1);
     cursor: pointer;
+}
+
+/* Firefox — date/month inputs don't have a custom arrow; add padding so text isn't flush */
+@-moz-document url-prefix() {
+
+    input[type="date"],
+    input[type="month"] {
+        padding-right: 10px;
+    }
+}
+
+/* Cross-browser placeholder colour */
+input::placeholder,
+textarea::placeholder {
+    color: rgba(255, 255, 255, 0.35);
+}
+
+/* Firefox-specific placeholder */
+input::-moz-placeholder,
+textarea::-moz-placeholder {
+    color: rgba(255, 255, 255, 0.35);
+    opacity: 1;
 }
 
 /* Base focus removal */
@@ -606,6 +633,7 @@ select:focus {
     width: 100%;
     height: 100%;
     background: rgba(18, 18, 18, 0.8);
+    -webkit-backdrop-filter: blur(4px);
     backdrop-filter: blur(4px);
     z-index: 1000;
     display: flex;
@@ -1114,6 +1142,7 @@ select {
 /* Beautiful Label */
 .label-text {
     background: rgba(0, 180, 219, 0.15);
+    -webkit-backdrop-filter: blur(8px);
     backdrop-filter: blur(8px);
     border: 1px solid rgba(0, 180, 219, 0.3);
     color: white;
