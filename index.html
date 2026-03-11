@@ -411,24 +411,17 @@
                                 </button>
                             </div>
 
-                            <div class="input-group">
-                                <label>Location or Maps Link</label>
+                            <div class="input-group" style="position: relative;">
+                                <label>Search Destination</label>
                                 <div style="display: flex; gap: 8px;">
                                     <input type="text" id="travel-location-name" style="flex: 1;"
-                                        placeholder="Location or paste Maps link..." required>
+                                        placeholder="Search city, hotel, landmark..." autocomplete="off" required>
                                     <button type="button" class="icon-btn" id="travel-gps-btn"
                                         title="Use my GPS location" onclick="getGPSLocation()">
                                         <i class="ph ph-navigation-arrow"></i>
                                     </button>
-                                    <button type="button" class="icon-btn" id="travel-maps-btn"
-                                        title="Open Google Maps" onclick="openGoogleMaps()">
-                                        <i class="ph ph-map-trifold"></i>
-                                    </button>
-                                    <button type="button" class="icon-btn" id="travel-paste-btn"
-                                        title="Paste from clipboard" onclick="checkClipboardForLocation()">
-                                        <i class="ph ph-clipboard-text"></i>
-                                    </button>
                                 </div>
+                                <div id="location-suggestions" class="suggestions-dropdown hidden"></div>
                             </div>
 
                             <div style="display: flex; gap: 12px;">

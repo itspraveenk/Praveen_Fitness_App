@@ -328,7 +328,8 @@ const DOM = {
             lngInput: document.getElementById('travel-lng'),
             photoInput: document.getElementById('travel-photos'),
             photoPreview: document.getElementById('photo-preview-strip'),
-            experienceInput: document.getElementById('travel-experience')
+            experienceInput: document.getElementById('travel-experience'),
+            suggestions: document.getElementById('location-suggestions')
         }
     },
 
@@ -574,6 +575,25 @@ function setupEventListeners() {
         if (DOM.t && DOM.t.btns.add) DOM.t.btns.add.addEventListener('click', () => switchView('t', 'newForm'));
         if (DOM.t && DOM.t.btns.back) DOM.t.btns.back.addEventListener('click', () => switchView('t', 'dashboard'));
         if (DOM.t && DOM.t.elements.form) DOM.t.elements.form.addEventListener('submit', handleSaveTravelLocation);
+
+        // Travel Live Search
+        if (DOM.t && DOM.t.elements.nameInput) {
+            let timeout = null;
+            DOM.t.elements.nameInput.addEventListener('input', (e) => {
+                clearTimeout(timeout);
+                const query = e.target.value.trim();
+                if (query.length < 3) {
+                    DOM.t.elements.suggestions.classList.add('hidden');
+                    return;
+                }
+                timeout = setTimeout(() => searchLocations(query), 500);
+            });
+
+            // Close suggestions on blur (with delay to allow clicking)
+            DOM.t.elements.nameInput.addEventListener('blur', () => {
+                setTimeout(() => DOM.t.elements.suggestions.classList.add('hidden'), 200);
+            });
+        }
 
         // Workouts Form Actions
         if (DOM.w.btns.addEx) DOM.w.btns.addEx.addEventListener('click', addExerciseBlock);
@@ -2497,6 +2517,45 @@ function openGoogleMaps() {
     }
 
     window.open(url, '_blank');
+}
+
+async function searchLocations(query) {
+    const container = DOM.t.elements.suggestions;
+    if (!container) return;
+
+    try {
+        const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`);
+        const data = await response.json();
+
+        if (data.length === 0) {
+            container.classList.add('hidden');
+            return;
+        }
+
+        container.innerHTML = '';
+        data.forEach(item => {
+            const div = document.createElement('div');
+            div.className = 'suggestion-item';
+            const name = item.display_name.split(',')[0];
+            const sub = item.display_name.split(',').slice(1).join(',').trim();
+            
+            div.innerHTML = `
+                <strong>${name}</strong>
+                <span class="sub">${sub}</span>
+            `;
+            
+            div.onclick = () => {
+                DOM.t.elements.nameInput.value = name;
+                DOM.t.elements.latInput.value = parseFloat(item.lat).toFixed(6);
+                DOM.t.elements.lngInput.value = parseFloat(item.lon).toFixed(6);
+                container.classList.add('hidden');
+            };
+            container.appendChild(div);
+        });
+        container.classList.remove('hidden');
+    } catch (err) {
+        console.error('Search error:', err);
+    }
 }
 
 function getGPSLocation() {
