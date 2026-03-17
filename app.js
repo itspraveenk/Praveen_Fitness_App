@@ -112,7 +112,9 @@ function parseLocalDate(dateStr) {
 // ==========================================
 const DRAFT_KEYS = {
     workout: 'wt_draft_workout',
-    expense: 'wt_draft_expense'
+    expense: 'wt_draft_expense',
+    shopping: 'wt_draft_shopping',
+    travel: 'wt_draft_travel'
 };
 
 function saveDraftWorkout() {
@@ -387,6 +389,14 @@ function saveData(type) {
     if (type === 'expenses') localStorage.setItem('wt_expenses', JSON.stringify(expenses));
     if (type === 'shopping') localStorage.setItem('wt_shopping', JSON.stringify(shoppingItems));
     if (type === 'travels') localStorage.setItem('wt_travels', JSON.stringify(travels));
+    
+    // Auto-sync to GitHub if configured
+    const ghRepo = localStorage.getItem('gh_repo');
+    const ghToken = localStorage.getItem('gh_token');
+    if (ghRepo && ghToken && typeof pushToGitHub === 'function') {
+        // Run silently in the background
+        pushToGitHub(true);
+    }
 }
 
 // ==========================================
@@ -513,20 +523,32 @@ function switchView(app, viewName) {
             }
         } else if (app === 'sh') {
             if (!editingShoppingId) {
-                d.elements.nameInput.value = '';
+                const hasDraft = !!localStorage.getItem(DRAFT_KEYS.shopping);
+                if (hasDraft) {
+                    restoreDraftShopping();
+                } else {
+                    d.elements.nameInput.value = '';
+                }
+                setupShoppingDraftListeners();
             } else {
                 d.elements.title.textContent = 'Edit Item';
             }
         } else if (app === 't') {
             if (!editingTravelId) {
-                d.elements.nameInput.value = '';
-                d.elements.fromDateInput.value = today;
-                d.elements.toDateInput.value = '';
-                d.elements.latInput.value = '';
-                d.elements.lngInput.value = '';
-                d.elements.experienceInput.value = '';
-                d.elements.photoInput.value = '';
-                d.elements.photoPreview.innerHTML = '';
+                const hasDraft = !!localStorage.getItem(DRAFT_KEYS.travel);
+                if (hasDraft) {
+                    restoreDraftTravel();
+                } else {
+                    d.elements.nameInput.value = '';
+                    d.elements.fromDateInput.value = today;
+                    d.elements.toDateInput.value = '';
+                    d.elements.latInput.value = '';
+                    d.elements.lngInput.value = '';
+                    d.elements.experienceInput.value = '';
+                    d.elements.photoInput.value = '';
+                    d.elements.photoPreview.innerHTML = '';
+                }
+                setupTravelDraftListeners();
             } else {
                 d.elements.title.textContent = 'Edit Footprint';
             }
@@ -812,6 +834,78 @@ function setupExpenseDraftListeners() {
     if (form) form.addEventListener('input', saveDraftExpense);
 }
 
+// Shopping Draft Logic
+function saveDraftShopping() {
+    try {
+        const draft = {
+            name: DOM.sh.elements.nameInput ? DOM.sh.elements.nameInput.value : ''
+        };
+        localStorage.setItem(DRAFT_KEYS.shopping, JSON.stringify(draft));
+    } catch (e) { /* ignore */ }
+}
+
+function restoreDraftShopping() {
+    try {
+        const raw = localStorage.getItem(DRAFT_KEYS.shopping);
+        if (!raw) return;
+        const draft = JSON.parse(raw);
+        if (draft.name && DOM.sh.elements.nameInput) DOM.sh.elements.nameInput.value = draft.name;
+    } catch (e) { /* ignore */ }
+}
+
+function clearDraftShopping() {
+    localStorage.removeItem(DRAFT_KEYS.shopping);
+}
+
+let _shoppingDraftListenersAttached = false;
+function setupShoppingDraftListeners() {
+    if (_shoppingDraftListenersAttached) return;
+    _shoppingDraftListenersAttached = true;
+    const form = DOM.sh.elements.form;
+    if (form) form.addEventListener('input', saveDraftShopping);
+}
+
+// Travel Draft Logic
+function saveDraftTravel() {
+    try {
+        const draft = {
+            name: DOM.t.elements.nameInput ? DOM.t.elements.nameInput.value : '',
+            from: DOM.t.elements.fromDateInput ? DOM.t.elements.fromDateInput.value : '',
+            to: DOM.t.elements.toDateInput ? DOM.t.elements.toDateInput.value : '',
+            lat: DOM.t.elements.latInput ? DOM.t.elements.latInput.value : '',
+            lng: DOM.t.elements.lngInput ? DOM.t.elements.lngInput.value : '',
+            experience: DOM.t.elements.experienceInput ? DOM.t.elements.experienceInput.value : ''
+        };
+        localStorage.setItem(DRAFT_KEYS.travel, JSON.stringify(draft));
+    } catch (e) { /* ignore */ }
+}
+
+function restoreDraftTravel() {
+    try {
+        const raw = localStorage.getItem(DRAFT_KEYS.travel);
+        if (!raw) return;
+        const draft = JSON.parse(raw);
+        if (draft.name && DOM.t.elements.nameInput) DOM.t.elements.nameInput.value = draft.name;
+        if (draft.from && DOM.t.elements.fromDateInput) DOM.t.elements.fromDateInput.value = draft.from;
+        if (draft.to && DOM.t.elements.toDateInput) DOM.t.elements.toDateInput.value = draft.to;
+        if (draft.lat && DOM.t.elements.latInput) DOM.t.elements.latInput.value = draft.lat;
+        if (draft.lng && DOM.t.elements.lngInput) DOM.t.elements.lngInput.value = draft.lng;
+        if (draft.experience && DOM.t.elements.experienceInput) DOM.t.elements.experienceInput.value = draft.experience;
+    } catch (e) { /* ignore */ }
+}
+
+function clearDraftTravel() {
+    localStorage.removeItem(DRAFT_KEYS.travel);
+}
+
+let _travelDraftListenersAttached = false;
+function setupTravelDraftListeners() {
+    if (_travelDraftListenersAttached) return;
+    _travelDraftListenersAttached = true;
+    const form = DOM.t.elements.form;
+    if (form) form.addEventListener('input', saveDraftTravel);
+}
+
 // ==========================================
 // WORKOUTS LOGIC
 // ==========================================
@@ -851,7 +945,7 @@ function addExerciseBlock(exerciseData = null) {
         row.className = 'set-row';
         row.innerHTML = `
             <div class="set-number">${setCount}</div>
-            <input type="number" class="set-input set-weight" placeholder="100" required step="0.5" inputmode="decimal" value="${setData ? setData.weight : ''}">
+            <input type="number" class="set-input set-weight" placeholder="100" required step="0.1" inputmode="decimal" value="${setData ? setData.weight : ''}">
             <input type="number" class="set-input set-reps" placeholder="10" required min="1" inputmode="numeric" value="${setData ? setData.reps : ''}">
             <button type="button" class="btn-icon-danger remove-set-btn"><i class="ph ph-x"></i></button>
         `;
@@ -969,19 +1063,26 @@ function renderWorkoutsDashboard() {
         const dObj = parseLocalDate(w.date);
         const dStr = isNaN(dObj) ? w.date : dObj.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
         const totalSets = w.exercises.reduce((acc, ex) => acc + ex.sets.length, 0);
-        const exNames = w.exercises.map(ex => ex.title).join(', ');
+        
+        let detailsHtml = w.exercises.map(ex => {
+            let setsHtml = ex.sets.map((s, idx) => `<div style="display:flex; justify-content:space-between; font-size:12px; opacity:0.8; margin-bottom:2px;"><span>Set ${idx + 1}</span><span>${s.weight}kg × ${s.reps}</span></div>`).join('');
+            return `<div style="margin-bottom:8px; padding-bottom:8px; border-bottom:1px solid rgba(255,255,255,0.05);"><strong style="font-size:13px; display:block; margin-bottom:4px;">${ex.title}</strong>${setsHtml}</div>`;
+        }).join('');
+
         return `
-            <div class="workout-item card">
+            <div class="workout-item card" onclick="this.querySelector('.workout-details-list').classList.toggle('hidden');">
                 <div class="workout-header">
-                    <span class="workout-day">${dStr}</span>
-                    <span class="workout-muscle">${w.muscle}</span>
+                    <span class="workout-muscle" style="font-size:1.1rem; font-weight:600;">${w.muscle}</span>
+                    <span class="workout-day" style="font-size:0.85rem; opacity:0.8;">${dStr}</span>
                 </div>
                 <div class="workout-summary">
                     <span><i class="ph ph-list-numbers"></i> ${w.exercises.length} Exercises</span>
                     <span><i class="ph ph-stack"></i> ${totalSets} Sets</span>
                 </div>
-                ${exNames ? `<p class="workout-exercise-names">${exNames}</p>` : ''}
-                <div class="workout-actions">
+                <div class="workout-details-list hidden" style="margin-top:12px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.1);">
+                    ${detailsHtml}
+                </div>
+                <div class="workout-actions" onclick="event.stopPropagation();">
                     <button class="btn btn-secondary btn-small" onclick="loadWorkoutForEdit('${w.id}')"><i class="ph ph-pencil"></i> Edit</button>
                     <button class="btn btn-danger-outline btn-small" onclick="deleteWorkout('${w.id}')"><i class="ph ph-trash"></i> Delete</button>
                 </div>
@@ -1007,7 +1108,7 @@ function updateWorkoutsChart() {
     for (let i = 6; i >= 0; i--) {
         const d = new Date();
         d.setDate(d.getDate() - i);
-        labels.push(d.toLocaleDateString('en-GB', { weekday: 'short' }));
+        labels.push(d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }));
 
         const year = d.getFullYear();
         const month = String(d.getMonth() + 1).padStart(2, '0');
@@ -1399,7 +1500,7 @@ function renderSpendingDashboard() {
 
     DOM.s.elements.list.innerHTML = monthExpenses.map(exp => {
         const dObj = parseLocalDate(exp.date);
-        const dStr = isNaN(dObj) ? exp.date : dObj.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' });
+        const dStr = isNaN(dObj) ? exp.date : dObj.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
         return `
             <div class="spending-item card">
@@ -1676,6 +1777,8 @@ function handleSaveShopping(e) {
         }
 
         saveData('shopping');
+        clearDraftShopping();
+        _shoppingDraftListenersAttached = false;
         DOM.sh.elements.form.reset();
         DOM.loadingOverlay.classList.add('hidden');
 
@@ -2178,14 +2281,28 @@ function loadGitHubSettings() {
 }
 
 function saveGitHubSettings() {
-    const repo = DOM.settings.ghRepoInput.value.trim();
+    let repo = DOM.settings.ghRepoInput.value.trim();
     const token = DOM.settings.ghTokenInput.value.trim();
     if (!repo || !token) {
         showGitHubStatus('⚠️ Please enter both a repository and a token.', true);
         return;
     }
+    
+    // Clean repo if user pasted a full URL
+    if (repo.includes('github.com/')) {
+        repo = repo.split('github.com/')[1];
+    }
+    // Remove trailing slash if any
+    if (repo.endsWith('/')) {
+        repo = repo.slice(0, -1);
+    }
+
     localStorage.setItem('gh_repo', repo);
     localStorage.setItem('gh_token', token);
+    
+    // Update the input field to reflect the cleaned version
+    DOM.settings.ghRepoInput.value = repo;
+
     showGitHubStatus('✅ GitHub settings saved!', false);
 }
 
@@ -2207,7 +2324,7 @@ async function pushFileToGitHub(repo, token, path, base64Content, commitMsg) {
     let sha = null;
     const checkResp = await fetch(
         `https://api.github.com/repos/${repo}/contents/${path}`,
-        { headers: { Authorization: `token ${token}`, Accept: 'application/vnd.github.v3+json' } }
+        { headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github.v3+json' } }
     );
     if (checkResp.ok) {
         sha = (await checkResp.json()).sha;
@@ -2221,7 +2338,7 @@ async function pushFileToGitHub(repo, token, path, base64Content, commitMsg) {
         {
             method: 'PUT',
             headers: {
-                Authorization: `token ${token}`,
+                Authorization: `Bearer ${token}`,
                 Accept: 'application/vnd.github.v3+json',
                 'Content-Type': 'application/json'
             },
@@ -2311,7 +2428,7 @@ async function pullFromGitHub() {
     try {
         const resp = await fetch(
             `https://api.github.com/repos/${repo}/contents/${GH_BACKUP_PATH}`,
-            { headers: { Authorization: `token ${token}`, Accept: 'application/vnd.github.v3+json' } }
+            { headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github.v3+json' } }
         );
 
         if (!resp.ok) {
@@ -2477,6 +2594,8 @@ async function handleSaveTravelLocation(e) {
     }
 
     saveData('travels');
+    clearDraftTravel();
+    _travelDraftListenersAttached = false;
     renderTravelDashboard();
 
     // UI Reset
