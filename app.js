@@ -2136,7 +2136,7 @@ async function checkForUpdates() {
     try {
         // Fetch releases or tags from GitHub
         const resp = await fetch(`https://api.github.com/repos/${repo}/tags`, {
-            headers: { Authorization: `token ${token}`, Accept: 'application/vnd.github.v3+json' }
+            headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github.v3+json' }
         });
 
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
