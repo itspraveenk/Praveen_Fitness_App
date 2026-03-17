@@ -1,7 +1,7 @@
 // ==========================================
 // STATE MANAGEMENT & VERSIONING
 // ==========================================
-const APP_VERSION = '1.2.0-IDB'; // Heartbeat update for push
+const APP_VERSION = '1.2.1-IDB'; // Heartbeat update for push
 
 let workouts = [];
 let expenses = [];
@@ -2123,38 +2123,31 @@ function clearAllData() {
 // --- Versioning & Snapshots ---
 
 async function checkForUpdates() {
-    const repo = localStorage.getItem('gh_repo');
-    const token = localStorage.getItem('gh_token');
-
-    if (!repo || !token) {
-        showGitHubStatus('⚠️ GitHub settings required to check updates.', true);
-        return;
-    }
-
-    showGitHubStatus('⏳ Checking for updates...', false);
+    showGitHubStatus('⏳ Clearing local cache...', false);
 
     try {
-        // Fetch releases or tags from GitHub
-        const resp = await fetch(`https://api.github.com/repos/${repo}/tags`, {
-            headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github.v3+json' }
-        });
-
-        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-
-        const tags = await resp.json();
-        if (tags && tags.length > 0) {
-            const latestTag = tags[0].name;
-            if (latestTag !== APP_VERSION) {
-                showGitHubStatus(`📥 New version available: ${latestTag}`, false);
-                if (confirm(`A new version (${latestTag}) is available. Visit GitHub to download?`)) {
-                    window.open(`https://github.com/${repo}/releases`, '_blank');
-                }
-            } else {
-                showGitHubStatus(`✅ You are on the latest version (${APP_VERSION}).`, false);
+        if ('serviceWorker' in navigator) {
+            const registrations = await navigator.serviceWorker.getRegistrations();
+            for (let registration of registrations) {
+                await registration.unregister();
             }
-        } else {
-            showGitHubStatus('No versions found in repository.', false);
         }
+
+        // Clear Cache Storage (where SW saves assets)
+        if ('caches' in window) {
+            const cacheNames = await caches.keys();
+            for (let cacheName of cacheNames) {
+                await caches.delete(cacheName);
+            }
+        }
+
+        showGitHubStatus('✅ Cache cleared! Reloading app...', false);
+        
+        // Force a hard reload from the server
+        setTimeout(() => {
+            window.location.reload(true);
+        }, 800);
+
     } catch (err) {
         showGitHubStatus(`❌ Update check failed: ${err.message}`, true);
     }

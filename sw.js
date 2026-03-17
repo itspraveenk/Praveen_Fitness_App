@@ -1,4 +1,4 @@
-const CACHE_NAME = 'praveen-app-v12';
+const CACHE_NAME = 'praveen-app-v13';
 
 const ASSETS_TO_CACHE = [
     './',
