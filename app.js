@@ -235,6 +235,7 @@ const DOM = {
             total: document.getElementById('total-workouts-stat'),
             week: document.getElementById('this-week-stat'),
             dayInput: document.getElementById('workout-day'),
+            muscleInput: document.getElementById('muscle-group'),
             // Custom Analytics
             btnOverview: document.getElementById('btn-overview-workouts'),
             btnAnalytics: document.getElementById('btn-analytics-workouts'),
@@ -364,6 +365,7 @@ async function init() {
     renderWorkoutsDashboard();
     renderSpendingDashboard();
     renderShoppingDashboard();
+    updateWorkoutDatalists();
 }
 
 function loadData() {
@@ -619,6 +621,11 @@ function setupEventListeners() {
 
         // Workouts Form Actions
         if (DOM.w.btns.addEx) DOM.w.btns.addEx.addEventListener('click', addExerciseBlock);
+        if (DOM.w.elements.muscleInput) {
+            DOM.w.elements.muscleInput.addEventListener('input', (e) => {
+                updateWorkoutDatalists(e.target.value.trim());
+            });
+        }
         if (DOM.w.elements.form) DOM.w.elements.form.addEventListener('submit', handleSaveWorkout);
 
         // Spending Form Actions
@@ -898,6 +905,35 @@ function clearDraftTravel() {
     localStorage.removeItem(DRAFT_KEYS.travel);
 }
 
+function updateWorkoutDatalists(filterMuscle = null) {
+    const muscleGroups = new Set();
+    const exerciseNames = new Set();
+
+    workouts.forEach(w => {
+        if (w.muscle) {
+            const m = toTitleCase(w.muscle.trim());
+            muscleGroups.add(m);
+            
+            // Only add exercises if no filter is provided OR if they match the filtered muscle
+            if (w.exercises && (!filterMuscle || m.toLowerCase() === filterMuscle.toLowerCase())) {
+                w.exercises.forEach(ex => {
+                    if (ex.title) exerciseNames.add(toTitleCase(ex.title.trim()));
+                });
+            }
+        }
+    });
+
+    const muscleDatalist = document.getElementById('muscle-group-datalist');
+    const exerciseDatalist = document.getElementById('exercise-name-datalist');
+
+    if (muscleDatalist) {
+        muscleDatalist.innerHTML = Array.from(muscleGroups).sort().map(g => `<option value="${g}">`).join('');
+    }
+    if (exerciseDatalist) {
+        exerciseDatalist.innerHTML = Array.from(exerciseNames).sort().map(e => `<option value="${e}">`).join('');
+    }
+}
+
 let _travelDraftListenersAttached = false;
 function setupTravelDraftListeners() {
     if (_travelDraftListenersAttached) return;
@@ -921,7 +957,7 @@ function addExerciseBlock(exerciseData = null) {
 
     block.innerHTML = `
         <div class="exercise-header">
-            <input type="text" class="exercise-title-input" placeholder="Exercise Name" required value="${exerciseData ? (exerciseData.title || '') : ''}">
+            <input type="text" class="exercise-title-input" placeholder="Exercise Name" required value="${exerciseData ? (exerciseData.title || '') : ''}" list="exercise-name-datalist">
             <button type="button" class="btn-icon-danger remove-ex-btn"><i class="ph ph-trash"></i></button>
         </div>
         <div class="sets-container">
@@ -1009,6 +1045,7 @@ function handleSaveWorkout(e) {
         }
         workouts.sort((a, b) => parseLocalDate(b.date) - parseLocalDate(a.date));
         saveData('workouts');
+        updateWorkoutDatalists();
         clearDraftWorkout();
         _workoutDraftListenersAttached = false;
         DOM.w.elements.form.reset();
