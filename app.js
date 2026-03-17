@@ -2329,8 +2329,12 @@ async function pushFileToGitHub(repo, token, path, base64Content, commitMsg) {
     if (checkResp.ok) {
         sha = (await checkResp.json()).sha;
     } else if (checkResp.status !== 404) {
-        const err = await checkResp.json();
-        throw new Error(err.message || `HTTP ${checkResp.status}`);
+        let errStr = `HTTP ${checkResp.status}`;
+        try {
+            const err = await checkResp.json();
+            errStr = err.message || errStr;
+        } catch(e) { /* ignore JSON parse error */ }
+        throw new Error(errStr);
     }
 
     const putResp = await fetch(
@@ -2346,8 +2350,12 @@ async function pushFileToGitHub(repo, token, path, base64Content, commitMsg) {
         }
     );
     if (!putResp.ok) {
-        const err = await putResp.json();
-        throw new Error(err.message || `HTTP ${putResp.status}`);
+        let errStr = `HTTP ${putResp.status}`;
+        try {
+            const err = await putResp.json();
+            errStr = err.message || errStr;
+        } catch(e) { /* ignore JSON parse error */ }
+        throw new Error(errStr);
     }
 }
 
@@ -2407,7 +2415,9 @@ async function pushToGitHub() {
         localStorage.setItem('gh_last_sync', now);
         showGitHubStatus(`✅ Pushed at ${now}`, false);
     } catch (err) {
+        console.error('GitHub Push Error:', err);
         showGitHubStatus(`❌ Push failed: ${err.message}`, true);
+        alert(`GitHub Sync Error:\n${err.message}\nMake sure your token has "repo" permissions!`);
     } finally {
         setGitHubButtonsDisabled(false);
     }
