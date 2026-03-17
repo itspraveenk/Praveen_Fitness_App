@@ -1108,7 +1108,7 @@ function updateWorkoutsChart() {
     for (let i = 6; i >= 0; i--) {
         const d = new Date();
         d.setDate(d.getDate() - i);
-        labels.push(d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }));
+        labels.push(d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' }));
 
         const year = d.getFullYear();
         const month = String(d.getMonth() + 1).padStart(2, '0');
@@ -1298,7 +1298,7 @@ function renderCustomWorkoutsChart() {
     });
 
     const rawKeys = Object.keys(buckets);
-    const labels = rawKeys.map(k => k.replace('-W', ' Wk '));
+    const labels = rawKeys.map(k => 'WK ' + k.split('-W')[1]);
     let dataPoints = [];
     let chartOpts = {};
 
