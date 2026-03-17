@@ -2303,7 +2303,23 @@ function saveGitHubSettings() {
     // Update the input field to reflect the cleaned version
     DOM.settings.ghRepoInput.value = repo;
 
-    showGitHubStatus('✅ GitHub settings saved!', false);
+    showGitHubStatus('⏳ Verifying connection...', false);
+    
+    // Diagnostic Test Fetch
+    fetch(`https://api.github.com/repos/${repo}`, {
+        headers: { Authorization: `Bearer ${token}` }
+    })
+    .then(async (testResp) => {
+        if (testResp.ok) {
+            showGitHubStatus('✅ Settings saved and connection verified!', false);
+        } else {
+            const err = await testResp.json().catch(() => ({}));
+            showGitHubStatus(`⚠️ Settings Saved, but verification failed: HTTP ${testResp.status} ${err.message || ''}`, true);
+        }
+    })
+    .catch((e) => {
+        showGitHubStatus(`❌ Settings saved, but CONNECTION BLOCKED by browser ("Failed to fetch"). Disable AdBlock/VPN!`, true);
+    });
 }
 
 function showGitHubStatus(msg, isError) {
@@ -2417,7 +2433,13 @@ async function pushToGitHub() {
     } catch (err) {
         console.error('GitHub Push Error:', err);
         showGitHubStatus(`❌ Push failed: ${err.message}`, true);
-        alert(`GitHub Sync Error:\n${err.message}\nMake sure your token has "repo" permissions!`);
+        
+        let extraHelp = '';
+        if (err.message.includes('Failed to fetch')) {
+            extraHelp = '\n\nThis usually means your browser blocked the request (AdBlock/VPN) OR your backup has too many high-quality Travel images, making it too large to upload!';
+        }
+        
+        alert(`GitHub Sync Error:\n${err.message}\nMake sure your token has "repo" permissions!${extraHelp}`);
     } finally {
         setGitHubButtonsDisabled(false);
     }
