@@ -1,4 +1,4 @@
-const CACHE_NAME = 'praveen-app-v18';
+const CACHE_NAME = 'praveen-app-v19';
 
 const ASSETS_TO_CACHE = [
     './',
@@ -7,10 +7,7 @@ const ASSETS_TO_CACHE = [
     './app.js',
     './manifest.json',
     'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap',
-    'https://unpkg.com/@phosphor-icons/web',
-    'https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css',
-    'https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/dark.css',
-    'https://cdn.jsdelivr.net/npm/flatpickr'
+    'https://unpkg.com/@phosphor-icons/web'
 ];
 
 self.addEventListener('install', (event) => {

@@ -20,9 +20,6 @@
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://unpkg.com/three"></script>
     <script src="https://unpkg.com/globe.gl"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/dark.css">
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 </head>
 
 <body>
@@ -104,12 +101,12 @@
                             <h2 class="section-title">Custom Graph</h2>
                             <div class="card form-section">
                                 <div class="input-group">
-                                    <label>Start Date (dd/mm/yyyy)</label>
-                                    <input type="text" id="workouts-start-week" placeholder="dd/mm/yyyy" inputmode="numeric" maxlength="10" autocomplete="off">
+                                    <label>Start Date</label>
+                                    <input type="date" id="workouts-start-week">
                                 </div>
                                 <div class="input-group">
-                                    <label>End Date (dd/mm/yyyy)</label>
-                                    <input type="text" id="workouts-end-week" placeholder="dd/mm/yyyy" inputmode="numeric" maxlength="10" autocomplete="off">
+                                    <label>End Date</label>
+                                    <input type="date" id="workouts-end-week">
                                 </div>
                                 <div class="form-group">
                                     <label>Muscle Group</label>
@@ -139,8 +136,8 @@
                         <form id="workout-form">
                             <div class="card form-section">
                                 <div class="input-group">
-                                    <label for="workout-day">Date (dd/mm/yyyy)</label>
-                                    <input type="text" id="workout-day" placeholder="dd/mm/yyyy" required inputmode="numeric" maxlength="10" autocomplete="off">
+                                    <label for="workout-day">Date</label>
+                                    <input type="date" id="workout-day" required>
                                 </div>
                                 <div class="input-group">
                                     <label for="muscle-group">Muscle Group</label>
@@ -247,8 +244,8 @@
                         <form id="spending-form">
                             <div class="card form-section">
                                 <div class="input-group">
-                                    <label for="expense-date">Date (dd/mm/yyyy)</label>
-                                    <input type="text" id="expense-date" placeholder="dd/mm/yyyy" required inputmode="numeric" maxlength="10" autocomplete="off">
+                                    <label for="expense-date">Date</label>
+                                    <input type="date" id="expense-date" required>
                                 </div>
                                 <div class="form-group">
                                     <label>Category</label>
@@ -336,12 +333,12 @@
                             <h2 class="section-title">Item Purchase History</h2>
                             <div class="card form-section">
                                 <div class="input-group">
-                                    <label>Start Date (dd/mm/yyyy)</label>
-                                    <input type="text" id="shopping-start-date" placeholder="dd/mm/yyyy" inputmode="numeric" maxlength="10" autocomplete="off">
+                                    <label>Start Date</label>
+                                    <input type="date" id="shopping-start-date">
                                 </div>
                                 <div class="input-group">
-                                    <label>End Date (dd/mm/yyyy)</label>
-                                    <input type="text" id="shopping-end-date" placeholder="dd/mm/yyyy" inputmode="numeric" maxlength="10" autocomplete="off">
+                                    <label>End Date</label>
+                                    <input type="date" id="shopping-end-date">
                                 </div>
                                 <div class="form-group">
                                     <label>Item</label>
