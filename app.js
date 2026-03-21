@@ -134,11 +134,21 @@ function displayDateToISO(displayStr) {
 
 // Initializes Flatpickr on a date text input (d/m/Y format)
 function initFlatpickr(inputEl) {
-    if (!inputEl || inputEl._flatpickr) return;
+    if (!inputEl) return;
+    if (inputEl._flatpickr) return inputEl._flatpickr;
+    
+    if (typeof flatpickr === 'undefined') {
+        console.warn('Flatpickr not loaded yet, will retry...');
+        setTimeout(() => initFlatpickr(inputEl), 100);
+        return;
+    }
+
     return flatpickr(inputEl, {
         dateFormat: "d/m/Y",
         allowInput: true,
-        disableMobile: "true"
+        disableMobile: true,
+        monthSelectorType: 'static',
+        yearSelectorType: 'static'
     });
 }
 
