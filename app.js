@@ -101,10 +101,47 @@ function toTitleCase(str) {
 }
 
 // Parses a YYYY-MM-DD date string as LOCAL time (avoids UTC off-by-one day bug)
+// Also handles dd/mm/yyyy display format
 function parseLocalDate(dateStr) {
     if (!dateStr) return new Date(NaN);
+    // Handle dd/mm/yyyy format
+    if (dateStr.includes('/')) {
+        const [d, m, y] = dateStr.split('/').map(Number);
+        return new Date(y, m - 1, d);
+    }
+    // Handle YYYY-MM-DD format
     const [y, m, d] = dateStr.split('-').map(Number);
     return new Date(y, m - 1, d);
+}
+
+// Converts YYYY-MM-DD to dd/mm/yyyy (for display in text inputs)
+function isoToDisplayDate(isoStr) {
+    if (!isoStr) return '';
+    if (isoStr.includes('/')) return isoStr; // already display format
+    const [y, m, d] = isoStr.split('-');
+    if (!y || !m || !d) return isoStr;
+    return `${d}/${m}/${y}`;
+}
+
+// Converts dd/mm/yyyy to YYYY-MM-DD (for internal storage)
+function displayDateToISO(displayStr) {
+    if (!displayStr) return '';
+    if (!displayStr.includes('/')) return displayStr; // assume already ISO
+    const [d, m, y] = displayStr.split('/');
+    if (!d || !m || !y) return displayStr;
+    return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
+}
+
+// Auto-formats a date text input as user types (inserts slashes)
+function setupDateInputAutoFormat(inputEl) {
+    if (!inputEl || inputEl.dataset.autoFormatAttached) return;
+    inputEl.dataset.autoFormatAttached = 'true';
+    inputEl.addEventListener('input', function(e) {
+        let v = e.target.value.replace(/[^\d]/g, '');
+        if (v.length >= 3) v = v.slice(0,2) + '/' + v.slice(2);
+        if (v.length >= 6) v = v.slice(0,5) + '/' + v.slice(5,9);
+        e.target.value = v;
+    });
 }
 
 // ==========================================
@@ -145,7 +182,7 @@ function restoreDraftWorkout() {
         if (!raw) return;
         const draft = JSON.parse(raw);
         if (!draft) return;
-        if (draft.date && DOM.w.elements.dayInput) DOM.w.elements.dayInput.value = draft.date;
+        if (draft.date && DOM.w.elements.dayInput) DOM.w.elements.dayInput.value = isoToDisplayDate(draft.date);
         const muscleEl = document.getElementById('muscle-group');
         if (draft.muscle && muscleEl) muscleEl.value = draft.muscle;
         if (draft.exercises && draft.exercises.length) {
@@ -178,7 +215,7 @@ function restoreDraftExpense() {
         if (!raw) return;
         const draft = JSON.parse(raw);
         if (!draft) return;
-        if (draft.date && DOM.s.elements.dateInput) DOM.s.elements.dateInput.value = draft.date;
+        if (draft.date && DOM.s.elements.dateInput) DOM.s.elements.dateInput.value = isoToDisplayDate(draft.date);
         const typeEl = document.getElementById('expense-type');
         if (draft.type && typeEl) {
             typeEl.value = draft.type;
@@ -487,7 +524,9 @@ function switchView(app, viewName) {
         d.btns.back.classList.remove('hidden');
 
         // Setup defaults
-        const today = new Date().toISOString().split('T')[0];
+        const today = isoToDisplayDate(new Date().toISOString().split('T')[0]);
+        setupDateInputAutoFormat(d.elements.dayInput);
+        setupDateInputAutoFormat(d.elements.dateInput);
         if (app === 'w') {
             if (!editingWorkoutId) {
                 // Try to restore draft first, otherwise set defaults
@@ -623,7 +662,8 @@ function setupEventListeners() {
         if (DOM.w.btns.addEx) DOM.w.btns.addEx.addEventListener('click', addExerciseBlock);
         if (DOM.w.elements.muscleInput) {
             DOM.w.elements.muscleInput.addEventListener('input', (e) => {
-                updateWorkoutDatalists(e.target.value.trim());
+                const val = e.target.value.trim();
+                updateWorkoutDatalists(val || null);
             });
         }
         if (DOM.w.elements.form) DOM.w.elements.form.addEventListener('submit', handleSaveWorkout);
@@ -1028,7 +1068,7 @@ function handleSaveWorkout(e) {
             // Edit existing workout
             const idx = workouts.findIndex(w => w.id === editingWorkoutId);
             if (idx !== -1) {
-                workouts[idx].date = DOM.w.elements.dayInput.value;
+                workouts[idx].date = displayDateToISO(DOM.w.elements.dayInput.value);
                 workouts[idx].muscle = muscleGroup;
                 workouts[idx].exercises = exercises;
             }
@@ -1037,7 +1077,7 @@ function handleSaveWorkout(e) {
             // Create new workout
             const newWorkout = {
                 id: Date.now().toString(),
-                date: DOM.w.elements.dayInput.value,
+                date: displayDateToISO(DOM.w.elements.dayInput.value),
                 muscle: muscleGroup,
                 exercises
             };
@@ -1062,7 +1102,7 @@ function loadWorkoutForEdit(id) {
     editingWorkoutId = id;
 
     // Populate header fields
-    DOM.w.elements.dayInput.value = w.date;
+    DOM.w.elements.dayInput.value = isoToDisplayDate(w.date);
     document.getElementById('muscle-group').value = w.muscle;
 
     // Clear and repopulate exercises container
@@ -1423,7 +1463,7 @@ function handleSaveExpense(e) {
         if (editingExpenseId) {
             const idx = expenses.findIndex(exp => exp.id === editingExpenseId);
             if (idx !== -1) {
-                expenses[idx].date = DOM.s.elements.dateInput.value;
+                expenses[idx].date = displayDateToISO(DOM.s.elements.dateInput.value);
                 expenses[idx].type = selectedType;
                 expenses[idx].item = itemDesc;
                 expenses[idx].price = parseFloat(document.getElementById('expense-price').value);
@@ -1432,7 +1472,7 @@ function handleSaveExpense(e) {
         } else {
             const newExpense = {
                 id: Date.now().toString(),
-                date: DOM.s.elements.dateInput.value,
+                date: displayDateToISO(DOM.s.elements.dateInput.value),
                 type: selectedType,
                 item: itemDesc,
                 price: parseFloat(document.getElementById('expense-price').value)
@@ -1459,7 +1499,7 @@ function loadExpenseForEdit(id) {
     if (!exp) return;
     editingExpenseId = id;
 
-    DOM.s.elements.dateInput.value = exp.date;
+    DOM.s.elements.dateInput.value = isoToDisplayDate(exp.date);
     document.getElementById('expense-item').value = exp.item;
     document.getElementById('expense-price').value = exp.price;
 
