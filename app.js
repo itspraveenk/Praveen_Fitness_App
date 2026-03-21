@@ -132,15 +132,19 @@ function displayDateToISO(displayStr) {
     return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
 }
 
-// Auto-formats a date text input as user types (inserts slashes)
+// Auto-formats a date text input as user types (inserts slashes for dd/mm/yyyy)
 function setupDateInputAutoFormat(inputEl) {
     if (!inputEl || inputEl.dataset.autoFormatAttached) return;
     inputEl.dataset.autoFormatAttached = 'true';
     inputEl.addEventListener('input', function(e) {
-        let v = e.target.value.replace(/[^\d]/g, '');
-        if (v.length >= 3) v = v.slice(0,2) + '/' + v.slice(2);
-        if (v.length >= 6) v = v.slice(0,5) + '/' + v.slice(5,9);
-        e.target.value = v;
+        let v = e.target.value.replace(/[^\d]/g, ''); // strip all non-digits
+        if (v.length === 0) { e.target.value = ''; return; }
+        v = v.slice(0, 8); // cap at 8 digits (ddmmyyyy)
+        // Build dd/mm/yyyy progressively
+        let result = v;
+        if (v.length > 2) result = v.slice(0, 2) + '/' + v.slice(2);
+        if (v.length > 4) result = v.slice(0, 2) + '/' + v.slice(2, 4) + '/' + v.slice(4);
+        e.target.value = result;
     });
 }
 
