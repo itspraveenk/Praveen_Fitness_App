@@ -724,24 +724,12 @@ function setupEventListeners() {
 
         // Event listeners to redraw charts on input change
         if (DOM.w.elements.customStartWeek) {
-            DOM.w.elements.customStartWeek.addEventListener('change', (e) => {
-                if (!e.target.value) return;
-                const d = new Date(e.target.value);
-                const day = d.getDay() || 7;
-                d.setDate(d.getDate() - (day - 1));
-                e.target.value = d.toISOString().split('T')[0];
-                renderCustomWorkoutsChart();
-            });
+            setupDateInputAutoFormat(DOM.w.elements.customStartWeek);
+            DOM.w.elements.customStartWeek.addEventListener('input', () => renderCustomWorkoutsChart());
         }
         if (DOM.w.elements.customEndWeek) {
-            DOM.w.elements.customEndWeek.addEventListener('change', (e) => {
-                if (!e.target.value) return;
-                const d = new Date(e.target.value);
-                const day = d.getDay() || 7;
-                d.setDate(d.getDate() + (7 - day));
-                e.target.value = d.toISOString().split('T')[0];
-                renderCustomWorkoutsChart();
-            });
+            setupDateInputAutoFormat(DOM.w.elements.customEndWeek);
+            DOM.w.elements.customEndWeek.addEventListener('input', () => renderCustomWorkoutsChart());
         }
         if (DOM.w.elements.customFilter) DOM.w.elements.customFilter.addEventListener('change', updateExerciseDropdown);
         if (DOM.w.elements.customExercise) DOM.w.elements.customExercise.addEventListener('change', renderCustomWorkoutsChart);
@@ -768,8 +756,14 @@ function setupEventListeners() {
             });
         }
 
-        if (DOM.sh.elements.customStartDate) DOM.sh.elements.customStartDate.addEventListener('change', renderCustomShoppingChart);
-        if (DOM.sh.elements.customEndDate) DOM.sh.elements.customEndDate.addEventListener('change', renderCustomShoppingChart);
+        if (DOM.sh.elements.customStartDate) {
+            setupDateInputAutoFormat(DOM.sh.elements.customStartDate);
+            DOM.sh.elements.customStartDate.addEventListener('input', renderCustomShoppingChart);
+        }
+        if (DOM.sh.elements.customEndDate) {
+            setupDateInputAutoFormat(DOM.sh.elements.customEndDate);
+            DOM.sh.elements.customEndDate.addEventListener('input', renderCustomShoppingChart);
+        }
         if (DOM.sh.elements.customFilter) DOM.sh.elements.customFilter.addEventListener('change', renderCustomShoppingChart);
 
         // Settings Navigation
@@ -1268,8 +1262,8 @@ function initCustomWorkoutsAnalytics() {
         const today = new Date();
         const startObj = new Date(today.getTime() - 11 * 7 * 24 * 60 * 60 * 1000);
 
-        DOM.w.elements.customEndWeek.value = today.toISOString().split('T')[0];
-        DOM.w.elements.customStartWeek.value = startObj.toISOString().split('T')[0];
+        DOM.w.elements.customEndWeek.value = isoToDisplayDate(today.toISOString().split('T')[0]);
+        DOM.w.elements.customStartWeek.value = isoToDisplayDate(startObj.toISOString().split('T')[0]);
 
         updateExerciseDropdown();
     } catch (err) {
@@ -1310,8 +1304,8 @@ function updateExerciseDropdown() {
 function renderCustomWorkoutsChart() {
     const ctx = document.getElementById('workouts-custom-chart').getContext('2d');
 
-    const startStr = DOM.w.elements.customStartWeek.value;
-    const endStr = DOM.w.elements.customEndWeek.value;
+    const startStr = displayDateToISO(DOM.w.elements.customStartWeek.value);
+    const endStr = displayDateToISO(DOM.w.elements.customEndWeek.value);
     const filterGroup = DOM.w.elements.customFilter.value;
     const filterEx = DOM.w.elements.customExercise.value;
 
@@ -1915,8 +1909,8 @@ function initCustomShoppingAnalytics() {
         const start = new Date();
         start.setDate(start.getDate() - 30);
 
-        DOM.sh.elements.customStartDate.value = start.toISOString().split('T')[0];
-        DOM.sh.elements.customEndDate.value = end.toISOString().split('T')[0];
+        DOM.sh.elements.customStartDate.value = isoToDisplayDate(start.toISOString().split('T')[0]);
+        DOM.sh.elements.customEndDate.value = isoToDisplayDate(end.toISOString().split('T')[0]);
 
         renderCustomShoppingChart();
     } catch (err) {
@@ -1927,8 +1921,8 @@ function initCustomShoppingAnalytics() {
 function renderCustomShoppingChart() {
     if (!DOM.sh.elements.customStartDate.value || !DOM.sh.elements.customEndDate.value) return;
 
-    const startDate = new Date(DOM.sh.elements.customStartDate.value);
-    const endDate = new Date(DOM.sh.elements.customEndDate.value);
+    const startDate = parseLocalDate(displayDateToISO(DOM.sh.elements.customStartDate.value));
+    const endDate = parseLocalDate(displayDateToISO(DOM.sh.elements.customEndDate.value));
     const filterItem = DOM.sh.elements.customFilter.value;
     const ctx = document.getElementById('shopping-custom-chart').getContext('2d');
 
