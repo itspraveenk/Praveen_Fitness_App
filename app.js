@@ -132,19 +132,13 @@ function displayDateToISO(displayStr) {
     return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
 }
 
-// Auto-formats a date text input as user types (inserts slashes for dd/mm/yyyy)
-function setupDateInputAutoFormat(inputEl) {
-    if (!inputEl || inputEl.dataset.autoFormatAttached) return;
-    inputEl.dataset.autoFormatAttached = 'true';
-    inputEl.addEventListener('input', function(e) {
-        let v = e.target.value.replace(/[^\d]/g, ''); // strip all non-digits
-        if (v.length === 0) { e.target.value = ''; return; }
-        v = v.slice(0, 8); // cap at 8 digits (ddmmyyyy)
-        // Build dd/mm/yyyy progressively
-        let result = v;
-        if (v.length > 2) result = v.slice(0, 2) + '/' + v.slice(2);
-        if (v.length > 4) result = v.slice(0, 2) + '/' + v.slice(2, 4) + '/' + v.slice(4);
-        e.target.value = result;
+// Initializes Flatpickr on a date text input (d/m/Y format)
+function initFlatpickr(inputEl) {
+    if (!inputEl || inputEl._flatpickr) return;
+    return flatpickr(inputEl, {
+        dateFormat: "d/m/Y",
+        allowInput: true,
+        disableMobile: "true"
     });
 }
 
@@ -529,8 +523,8 @@ function switchView(app, viewName) {
 
         // Setup defaults
         const today = isoToDisplayDate(new Date().toISOString().split('T')[0]);
-        setupDateInputAutoFormat(d.elements.dayInput);
-        setupDateInputAutoFormat(d.elements.dateInput);
+        initFlatpickr(d.elements.dayInput);
+        initFlatpickr(d.elements.dateInput);
         if (app === 'w') {
             if (!editingWorkoutId) {
                 // Try to restore draft first, otherwise set defaults
@@ -728,11 +722,11 @@ function setupEventListeners() {
 
         // Event listeners to redraw charts on input change
         if (DOM.w.elements.customStartWeek) {
-            setupDateInputAutoFormat(DOM.w.elements.customStartWeek);
+            initFlatpickr(DOM.w.elements.customStartWeek);
             DOM.w.elements.customStartWeek.addEventListener('input', () => renderCustomWorkoutsChart());
         }
         if (DOM.w.elements.customEndWeek) {
-            setupDateInputAutoFormat(DOM.w.elements.customEndWeek);
+            initFlatpickr(DOM.w.elements.customEndWeek);
             DOM.w.elements.customEndWeek.addEventListener('input', () => renderCustomWorkoutsChart());
         }
         if (DOM.w.elements.customFilter) DOM.w.elements.customFilter.addEventListener('change', updateExerciseDropdown);
@@ -761,11 +755,11 @@ function setupEventListeners() {
         }
 
         if (DOM.sh.elements.customStartDate) {
-            setupDateInputAutoFormat(DOM.sh.elements.customStartDate);
+            initFlatpickr(DOM.sh.elements.customStartDate);
             DOM.sh.elements.customStartDate.addEventListener('input', renderCustomShoppingChart);
         }
         if (DOM.sh.elements.customEndDate) {
-            setupDateInputAutoFormat(DOM.sh.elements.customEndDate);
+            initFlatpickr(DOM.sh.elements.customEndDate);
             DOM.sh.elements.customEndDate.addEventListener('input', renderCustomShoppingChart);
         }
         if (DOM.sh.elements.customFilter) DOM.sh.elements.customFilter.addEventListener('change', renderCustomShoppingChart);
