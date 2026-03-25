@@ -513,8 +513,8 @@ function switchView(app, viewName) {
 
         // Setup defaults
         const today = new Date().toISOString().split('T')[0];
-        d.elements.dayInput.value = today;
-        d.elements.dateInput.value = today;
+        if (d.elements.dayInput) d.elements.dayInput.value = today;
+        if (d.elements.dateInput) d.elements.dateInput.value = today;
         if (app === 'w') {
             if (!editingWorkoutId) {
                 // Try to restore draft first, otherwise set defaults
@@ -647,8 +647,17 @@ function setupEventListeners() {
         }
 
         // Workouts Form Actions
-        if (DOM.w.btns.addEx) DOM.w.btns.addEx.addEventListener('click', addExerciseBlock);
+        if (DOM.w.btns.addEx) DOM.w.btns.addEx.addEventListener('click', () => addExerciseBlock());
         if (DOM.w.elements.muscleInput) {
+            DOM.w.elements.muscleInput.setAttribute('readonly', 'true'); // Prevent keyboard
+            DOM.w.elements.muscleInput.addEventListener('click', () => {
+                openSelectionModal(
+                    DOM.w.elements.muscleInput,
+                    'Select Muscle Group',
+                    'Search or add new muscle group...',
+                    currentMuscleGroups
+                );
+            });
             DOM.w.elements.muscleInput.addEventListener('input', (e) => {
                 const val = e.target.value.trim();
                 updateWorkoutDatalists(val || null);
@@ -923,6 +932,9 @@ function clearDraftTravel() {
     localStorage.removeItem(DRAFT_KEYS.travel);
 }
 
+let currentMuscleGroups = [];
+let currentExerciseNames = [];
+
 function updateWorkoutDatalists(filterMuscle = null) {
     const muscleGroups = new Set();
     const exerciseNames = new Set();
@@ -941,15 +953,82 @@ function updateWorkoutDatalists(filterMuscle = null) {
         }
     });
 
-    const muscleDatalist = document.getElementById('muscle-group-datalist');
-    const exerciseDatalist = document.getElementById('exercise-name-datalist');
+    currentMuscleGroups = Array.from(muscleGroups).sort();
+    currentExerciseNames = Array.from(exerciseNames).sort();
+}
 
-    if (muscleDatalist) {
-        muscleDatalist.innerHTML = Array.from(muscleGroups).sort().map(g => `<option value="${g}">`).join('');
+let activeSelectionInput = null;
+
+function openSelectionModal(inputEl, title, placeholder, items) {
+    activeSelectionInput = inputEl;
+    
+    document.getElementById('selection-modal-title').textContent = title;
+    const searchInput = document.getElementById('selection-modal-input');
+    searchInput.placeholder = placeholder;
+    searchInput.value = ''; // Don't pre-fill, let them see all, or pre-fill with current value
+    
+    const listEl = document.getElementById('selection-modal-list');
+    
+    function renderList(query) {
+        listEl.innerHTML = '';
+        const lowerQuery = query.toLowerCase();
+        
+        let matches = items.filter(i => i.toLowerCase().includes(lowerQuery));
+        
+        if (query && !matches.some(m => m.toLowerCase() === lowerQuery)) {
+            // Also add what they typed as a "Create new" option at the top
+            const createDiv = document.createElement('div');
+            createDiv.className = 'suggestion-item';
+            createDiv.innerHTML = `<strong>Add:</strong> ${query}`;
+            createDiv.onclick = () => selectItem(query);
+            listEl.appendChild(createDiv);
+        }
+        
+        matches.forEach(m => {
+            const div = document.createElement('div');
+            div.className = 'suggestion-item';
+            if (activeSelectionInput && activeSelectionInput.value === m) {
+                div.classList.add('selected');
+            }
+            div.textContent = m;
+            div.onclick = () => selectItem(m);
+            listEl.appendChild(div);
+        });
+        
+        if (listEl.innerHTML === '') {
+            listEl.innerHTML = '<div style="padding:16px; color:var(--text-secondary); text-align:center;">No matches found</div>';
+        }
     }
-    if (exerciseDatalist) {
-        exerciseDatalist.innerHTML = Array.from(exerciseNames).sort().map(e => `<option value="${e}">`).join('');
+    
+    function selectItem(val) {
+        if (activeSelectionInput) {
+            activeSelectionInput.value = val;
+            activeSelectionInput.dispatchEvent(new Event('input', { bubbles: true })); // trigger drafts
+        }
+        closeSelectionModal();
     }
+    
+    // Bind search input
+    searchInput.oninput = (e) => renderList(e.target.value);
+    
+    // Bind confirm button
+    document.getElementById('selection-modal-confirm').onclick = () => {
+        if (searchInput.value.trim()) {
+            selectItem(searchInput.value.trim());
+        } else {
+            closeSelectionModal();
+        }
+    };
+    
+    renderList('');
+    
+    document.getElementById('selection-modal').classList.remove('hidden');
+    // setTimeout(() => searchInput.focus(), 100);
+}
+
+function closeSelectionModal() {
+    document.getElementById('selection-modal').classList.add('hidden');
+    activeSelectionInput = null;
 }
 
 let _travelDraftListenersAttached = false;
@@ -975,7 +1054,7 @@ function addExerciseBlock(exerciseData = null) {
 
     block.innerHTML = `
         <div class="exercise-header">
-            <input type="text" class="exercise-title-input" placeholder="Exercise Name" required value="${exerciseData ? (exerciseData.title || '') : ''}" list="exercise-name-datalist">
+            <input type="text" class="exercise-title-input" placeholder="Exercise Name" required value="${exerciseData ? (exerciseData.title || '') : ''}" autocomplete="off" readonly>
             <button type="button" class="btn-icon-danger remove-ex-btn"><i class="ph ph-trash"></i></button>
         </div>
         <div class="sets-container">
@@ -984,6 +1063,16 @@ function addExerciseBlock(exerciseData = null) {
             <button type="button" class="add-set-btn"><i class="ph ph-plus"></i> Add Set</button>
         </div>
     `;
+
+    const titleInput = block.querySelector('.exercise-title-input');
+    titleInput.addEventListener('click', () => {
+        openSelectionModal(
+            titleInput,
+            'Select Exercise',
+            'Search or add new exercise...',
+            currentExerciseNames
+        );
+    });
 
     block.querySelector('.remove-ex-btn').addEventListener('click', () => {
         block.style.animation = 'fadeOut 0.2s ease-out forwards';

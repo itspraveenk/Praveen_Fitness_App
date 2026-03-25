@@ -139,11 +139,9 @@
                                     <label for="workout-day">Date</label>
                                     <input type="date" id="workout-day" required>
                                 </div>
-                                <div class="input-group">
+                                <div class="input-group" style="position: relative;">
                                     <label for="muscle-group">Muscle Group</label>
-                                    <input type="text" id="muscle-group" placeholder="e.g., Chest & Triceps" required list="muscle-group-datalist">
-                                    <datalist id="muscle-group-datalist"></datalist>
-                                    <datalist id="exercise-name-datalist"></datalist>
+                                    <input type="text" id="muscle-group" placeholder="e.g., Chest & Triceps" required autocomplete="off">
                                 </div>
                             </div>
                             <div id="exercises-container" class="exercises-container"></div>
@@ -582,6 +580,25 @@
             });
         }
     </script>
+
+    <!-- Selection Modal -->
+    <div id="selection-modal" class="modal-overlay hidden">
+        <div class="modal-content card">
+            <div class="modal-header">
+                <h3 id="selection-modal-title">Select Option</h3>
+                <button type="button" class="icon-btn-small" onclick="closeSelectionModal()">
+                    <i class="ph ph-x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <input type="text" id="selection-modal-input" placeholder="Search or add new..." autocomplete="off">
+                <div id="selection-modal-list" class="selection-list"></div>
+            </div>
+            <div class="modal-footer" style="margin-top: 16px;">
+                <button type="button" id="selection-modal-confirm" class="btn btn-primary">Confirm</button>
+            </div>
+        </div>
+    </div>
 </body>
 
 </html>
