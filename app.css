@@ -1298,3 +1298,59 @@ select {
     padding: 16px 20px;
     border-top: 1px solid var(--border-color);
 }
+/* Transport Mode Buttons */
+.transport-btn {
+    flex: 1;
+    background-color: var(--bg-elevated);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    padding: 12px 0;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.transport-btn i {
+    font-size: 24px;
+}
+
+.transport-btn:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+    color: var(--text-primary);
+}
+
+.transport-btn.active {
+    background-color: rgba(0, 180, 219, 0.15); /* matching travel theme roughly */
+    border-color: #00B4DB;
+    color: #00B4DB;
+    box-shadow: 0 4px 12px rgba(0, 180, 219, 0.2);
+}
+
+/* Mobile Optimizations for Travel Dashboard */
+@media (max-width: 768px) {
+    .travel-timeline {
+        width: 100%;
+        left: 0;
+        right: 0;
+        top: auto;
+        bottom: calc(var(--nav-height) + 10px);
+        height: 50vh;
+        padding: 16px;
+        /* create a sleek fade for the background so text is readable */
+        background: linear-gradient(to bottom, transparent 0%, rgba(18,18,18,0.8) 15%, rgba(18,18,18,1) 100%);
+        mask-image: none;
+        overflow-y: auto;
+        pointer-events: auto;
+        z-index: 10;
+        border-top: 1px solid rgba(255,255,255,0.05);
+        border-radius: 24px 24px 0 0;
+    }
+    
+    #globe-container {
+        height: 50vh !important;
+        top: var(--header-height);
+    }
+}

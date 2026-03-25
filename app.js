@@ -576,6 +576,13 @@ function switchView(app, viewName) {
                     d.elements.experienceInput.value = '';
                     d.elements.photoInput.value = '';
                     d.elements.photoPreview.innerHTML = '';
+                    
+                    if (document.getElementById('travel-transport-mode')) {
+                        document.getElementById('travel-transport-mode').value = 'plane';
+                        document.querySelectorAll('.transport-btn').forEach(b => b.classList.remove('active'));
+                        const planeBtn = document.querySelector('.transport-btn[data-mode="plane"]');
+                        if (planeBtn) planeBtn.classList.add('active');
+                    }
                 }
                 setupTravelDraftListeners();
             } else {
@@ -626,6 +633,19 @@ function setupEventListeners() {
         if (DOM.t && DOM.t.btns.add) DOM.t.btns.add.addEventListener('click', () => switchView('t', 'newForm'));
         if (DOM.t && DOM.t.btns.back) DOM.t.btns.back.addEventListener('click', () => switchView('t', 'dashboard'));
         if (DOM.t && DOM.t.elements.form) DOM.t.elements.form.addEventListener('submit', handleSaveTravelLocation);
+        
+        // Travel Transport Buttons
+        document.querySelectorAll('.transport-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const target = e.currentTarget;
+                document.querySelectorAll('.transport-btn').forEach(b => b.classList.remove('active'));
+                target.classList.add('active');
+                if (document.getElementById('travel-transport-mode')) {
+                    document.getElementById('travel-transport-mode').value = target.dataset.mode;
+                    saveDraftTravel();
+                }
+            });
+        });
 
         // Travel Live Search
         if (DOM.t && DOM.t.elements.nameInput) {
@@ -2832,11 +2852,15 @@ async function searchLocations(query) {
                 <span class="sub">${sub}</span>
             `;
             
-            div.onclick = () => {
+            div.onmousedown = (e) => {
+                e.preventDefault(); // Prevent input blur from hiding this before click resolves
                 DOM.t.elements.nameInput.value = name;
                 DOM.t.elements.latInput.value = parseFloat(item.lat).toFixed(6);
                 DOM.t.elements.lngInput.value = parseFloat(item.lon).toFixed(6);
                 container.classList.add('hidden');
+                
+                // Allow saveDraft to catch the new value
+                DOM.t.elements.nameInput.dispatchEvent(new Event('input', { bubbles: true }));
             };
             container.appendChild(div);
         });
@@ -3019,7 +3043,7 @@ function initTravelGlobe() {
 
         // Force a resize after a short delay to ensure correct dimensions
         setTimeout(() => {
-            if (travelGlobe) travelGlobe.width(window.innerWidth).height(window.innerHeight);
+            if (travelGlobe) travelGlobe.width(container.clientWidth).height(container.clientHeight);
         }, 100);
 
     } catch (err) {
@@ -3027,7 +3051,9 @@ function initTravelGlobe() {
     }
 
     window.addEventListener('resize', () => {
-        if (travelGlobe) travelGlobe.width(window.innerWidth).height(window.innerHeight);
+        if (travelGlobe && container) {
+            travelGlobe.width(container.clientWidth).height(container.clientHeight);
+        }
     });
 
     renderTravelDashboard();
@@ -3086,7 +3112,10 @@ function renderTravelDashboard() {
                                 ${new Date(t.fromDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })} 
                                 ${t.toDate ? ` - ${new Date(t.toDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}` : ''}
                             </div>
-                            <div class="timeline-name">${t.name}</div>
+                            <div class="timeline-name">
+                                ${t.transport ? `<i class="ph ph-${t.transport === 'plane' ? 'airplane-tilt' : t.transport}" style="margin-right:6px; color:var(--text-secondary);"></i>` : ''}
+                                ${t.name}
+                            </div>
                             
                             ${t.experience ? `<div class="timeline-story">${t.experience}</div>` : ''}
                             ${imgSection}

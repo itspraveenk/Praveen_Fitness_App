@@ -447,6 +447,28 @@
                                     <div id="photo-preview-strip" class="photo-preview-strip"></div>
                                 </div>
                             </div>
+                            
+                            <div class="input-group">
+                                <label>Transport Mode</label>
+                                <div class="transport-selector" style="display: flex; gap: 8px; justify-content: space-between;">
+                                    <button type="button" class="transport-btn active" data-mode="plane" title="Plane">
+                                        <i class="ph ph-airplane-tilt"></i>
+                                    </button>
+                                    <button type="button" class="transport-btn" data-mode="train" title="Train">
+                                        <i class="ph ph-train"></i>
+                                    </button>
+                                    <button type="button" class="transport-btn" data-mode="car" title="Car">
+                                        <i class="ph ph-car"></i>
+                                    </button>
+                                    <button type="button" class="transport-btn" data-mode="bus" title="Bus">
+                                        <i class="ph ph-bus"></i>
+                                    </button>
+                                    <button type="button" class="transport-btn" data-mode="boat" title="Boat">
+                                        <i class="ph ph-boat"></i>
+                                    </button>
+                                </div>
+                                <input type="hidden" id="travel-transport-mode" value="plane">
+                            </div>
 
                             <div class="input-group">
                                 <label>Your Journey Story</label>
